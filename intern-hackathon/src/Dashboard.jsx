@@ -80,7 +80,7 @@ export default function Dashboard() {
         }
 
         // Wait 250ms between requests to stay under 4 requests/sec
-        await delay(250);
+        await delay(50);
       }
 
       const artistNames = [
@@ -145,22 +145,9 @@ export default function Dashboard() {
   }));
 
   return (
-    <div
-      style={{
-        backgroundColor: darkMode ? "#121212" : "#f5f5f5",
-        color: darkMode ? "#fff" : "#000",
-        minHeight: "100vh",
-        padding: "1rem",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Typography variant="h4">🎟️ Ticketmaster Dashboard</Typography>
+    <div className="App">
+      <header className="App-header">
+        <Typography variant="h4">🎟️ concert.io</Typography>
         <FormControlLabel
           control={
             <Switch
@@ -170,16 +157,9 @@ export default function Dashboard() {
           }
           label="Dark Mode"
         />
-      </div>
+      </header>
 
-      <div
-        style={{
-          display: "flex",
-          gap: "1rem",
-          flexWrap: "wrap",
-          marginTop: "1rem",
-        }}
-      >
+      <div className="App-body">
         <TextField
           select
           label="Select Genre"
@@ -207,7 +187,7 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <Card style={{ marginTop: "2rem" }}>
+      <Card className="card">
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Genre Distribution
@@ -225,13 +205,13 @@ export default function Dashboard() {
                 stroke={darkMode ? "#fff" : "#000"}
               />
               <Tooltip />
-              <Bar dataKey="count" fill="#1976d2" />
+              <Bar dataKey="count" fill="#9a4975ff" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      <Card style={{ marginTop: "2rem" }}>
+      <Card className="card">
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Event List
@@ -239,7 +219,7 @@ export default function Dashboard() {
           {loading ? (
             <CircularProgress />
           ) : (
-            <TableContainer component={Paper} style={{ marginTop: "1rem" }}>
+            <TableContainer component={Paper} className="table-container">
               <Table>
                 <TableHead>
                   <TableRow>
@@ -348,6 +328,9 @@ export default function Dashboard() {
           <Button onClick={() => setSelectedEvent(null)}>Close</Button>
         </DialogActions>
       </Dialog>
+      <footer className="App-foot">
+        <p>powered by team SAND</p>
+      </footer>
     </div>
   );
 }
