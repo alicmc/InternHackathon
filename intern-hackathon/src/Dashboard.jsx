@@ -162,13 +162,7 @@ export default function Dashboard() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+        <header className="App-header">
           <Typography variant="h4">🎟️ Ticketmaster Dashboard</Typography>
           <FormControlLabel
             control={
@@ -179,7 +173,7 @@ export default function Dashboard() {
             }
             label="Dark Mode"
           />
-        </div>
+        </header>
 
         <div
           style={{
