@@ -37,7 +37,7 @@ import {
 } from "recharts";
 
 const API_KEY = process.env.REACT_APP_TICKETMASTER_API_KEY;
-const API_URL = "https://app.ticketmaster.com/discovery/v2/events.json";
+const API_URL = "http://localhost:5000/api/events";
 const PREDEFINED_GENRES = [
   "Pop",
   "Rock",

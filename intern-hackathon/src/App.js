@@ -1,5 +1,6 @@
 import "./App.css";
 import React, { useState } from "react";
+import Dashboard from "./Dashboard.jsx";
 
 function App() {
   const [userLocation, setUserLocation] = useState(null);
@@ -44,5 +45,3 @@ function App() {
 }
 
 export default App;
-
-
