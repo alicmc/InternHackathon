@@ -29,6 +29,12 @@
   color: white;
 }
 
+/* style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }} */
+
 .App-link {
   color: #61dafb;
 }
