@@ -29,8 +29,38 @@ app.get("/api/events", async (req, res) => {
 
     res.json(response.data);
   } catch (error) {
-    console.error("Error fetching events:", error.message);
-    res.status(500).json({ error: error.message });
+    console.error("Error fetching from Ticketmaster:");
+    if (error.response) {
+      console.error("Status:", error.response.status);
+      console.error("Data:", error.response.data);
+      res.status(500).json({
+        error: error.response.data,
+        message: error.response.data?.errors?.[0]?.detail || "Unknown error",
+      });
+    } else {
+      console.error("Message:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  }
+});
+
+app.get("/api/event/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+
+    const response = await axios.get(
+      `https://app.ticketmaster.com/discovery/v2/events/${id}.json`,
+      { params: { apikey: apiKey } }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error(
+      `Error fetching event ${req.params.id}:`,
+      error.response?.data || error.message
+    );
+    res.status(500).json({ error: error.response?.data || error.message });
   }
 });
 

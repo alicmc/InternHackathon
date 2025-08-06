@@ -24,7 +24,7 @@ import {
   DialogActions,
   CssBaseline,
   Container,
-  Autocomplete
+  Autocomplete,
 } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import {
@@ -37,7 +37,7 @@ import {
 } from "recharts";
 
 const API_KEY = process.env.REACT_APP_TICKETMASTER_API_KEY;
-const API_URL = "http://localhost:5000/api/events";
+const API_URL = "http://localhost:5000/api";
 const PREDEFINED_GENRES = [
   "Pop",
   "Rock",
@@ -67,9 +67,10 @@ export default function Dashboard() {
   });
 
   const fetchEvents = async () => {
+    const delay = (ms) => new Promise((res) => setTimeout(res, ms));
     setLoading(true);
     try {
-      const response = await axios.get(API_URL, {
+      const response = await axios.get(`${API_URL}/events`, {
         params: {
           apikey: API_KEY,
           keyword: artistInput,
@@ -79,19 +80,20 @@ export default function Dashboard() {
 
       const eventList = response.data._embedded?.events || [];
 
-      const detailedEvents = await Promise.all(
-        eventList.map(async (event) => {
-          try {
-            const detailRes = await axios.get(
-              `https://app.ticketmaster.com/discovery/v2/events/${event.id}.json`,
-              { params: { apikey: API_KEY } }
-            );
-            return detailRes.data;
-          } catch {
-            return event;
-          }
-        })
-      );
+      const detailedEvents = [];
+      for (const event of eventList) {
+        try {
+          const detailRes = await axios.get(
+            `http://localhost:5000/api/event/${event.id}`
+          );
+          detailedEvents.push(detailRes.data);
+        } catch (err) {
+          console.warn(`Skipping event ${event.id}:`, err.message);
+        }
+
+        // Wait 250ms between requests to stay under 4 requests/sec
+        await delay(250);
+      }
 
       const artistNames = [
         ...new Set(
@@ -105,9 +107,7 @@ export default function Dashboard() {
 
       const filteredByArtist = selectedArtist
         ? detailedEvents.filter((event) =>
-            event._embedded?.attractions?.some(
-              (a) => a.name === selectedArtist
-            )
+            event._embedded?.attractions?.some((a) => a.name === selectedArtist)
           )
         : detailedEvents;
 
@@ -128,14 +128,7 @@ export default function Dashboard() {
   };
 
   const exportToCSV = () => {
-    const headers = [
-      "Name",
-      "Date",
-      "Venue",
-      "City",
-      "Genre",
-      "Image URL",
-    ];
+    const headers = ["Name", "Date", "Venue", "City", "Genre", "Image URL"];
     const rows = events.map((event) => [
       event.name,
       event.dates?.start?.localDate,
@@ -169,15 +162,33 @@ export default function Dashboard() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <Typography variant="h4">🎟️ Ticketmaster Dashboard</Typography>
           <FormControlLabel
-            control={<Switch checked={darkMode} onChange={() => setDarkMode(!darkMode)} />}
+            control={
+              <Switch
+                checked={darkMode}
+                onChange={() => setDarkMode(!darkMode)}
+              />
+            }
             label="Dark Mode"
           />
         </div>
 
-        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginTop: "1rem" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "1rem",
+            flexWrap: "wrap",
+            marginTop: "1rem",
+          }}
+        >
           <TextField
             select
             label="Select Genre"
@@ -187,7 +198,9 @@ export default function Dashboard() {
           >
             <MenuItem value="">All</MenuItem>
             {PREDEFINED_GENRES.map((g) => (
-              <MenuItem key={g} value={g}>{g}</MenuItem>
+              <MenuItem key={g} value={g}>
+                {g}
+              </MenuItem>
             ))}
           </TextField>
 
@@ -207,12 +220,15 @@ export default function Dashboard() {
             style={{ minWidth: 200 }}
           />
 
-          <Button variant="contained" onClick={fetchEvents}>Search</Button>
-          <Button variant="outlined" onClick={exportToCSV}>Export CSV</Button>
+          <Button variant="contained" onClick={fetchEvents}>
+            Search
+          </Button>
+          <Button variant="outlined" onClick={exportToCSV}>
+            Export CSV
+          </Button>
         </div>
 
         {/* ...existing JSX remains unchanged... */}
-
       </Container>
     </ThemeProvider>
   );
