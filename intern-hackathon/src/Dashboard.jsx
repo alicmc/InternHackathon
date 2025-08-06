@@ -91,20 +91,18 @@ export default function Dashboard() {
         ),
       ];
 
-      setArtistOptions(artistNames);
-
-      const filteredByArtist = selectedArtist
+      const filteredByArtist = artist
         ? detailedEvents.filter((event) =>
-          event._embedded?.attractions?.some((a) => a.name === selectedArtist)
-        )
+            event._embedded?.attractions?.some((a) => a.name === artist)
+          )
         : detailedEvents;
 
       const filteredByGenre = genre
         ? detailedEvents.filter(
-          (event) =>
-            event.classifications?.[0]?.genre?.name?.toLowerCase() ===
-            genre.toLowerCase()
-        )
+            (event) =>
+              event.classifications?.[0]?.genre?.name?.toLowerCase() ===
+              genre.toLowerCase()
+          )
         : detailedEvents;
 
       setEvents(filteredByGenre);
