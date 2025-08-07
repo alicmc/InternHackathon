@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
+import Geohash from "ngeohash";
 import axios from "axios";
 import { saveAs } from "file-saver";
+import haversine from "haversine-distance";
+import { styled } from "@mui/material/styles";
 import {
   Button,
   Card,
@@ -48,11 +51,81 @@ const PREDEFINED_GENRES = [
 
 export default function Dashboard() {
   const [events, setEvents] = useState([]);
+  const [sortedEvents, setSortedEvents] = useState([]);
   const [genre, setGenre] = useState("");
   const [artist, setArtist] = useState("");
   const [loading, setLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [location, setLocation] = useState({
+    latitude: 38.9072,
+    longitude: 77.0369,
+  });
+  const [sortOrder, setSortOrder] = useState("asc"); // or "desc"
+  const [sortBy, setSortBy] = useState(null); // e.g., "date" or "distance"
+
+  useEffect(() => {
+    // Prompt for geolocation on mount
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+          console.log("User location:", position.coords);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        }
+      );
+    } else {
+      console.warn("Geolocation not supported");
+    }
+  }, []);
+
+  const StyledCard = styled(Card)(({ theme, darkMode }) => ({
+    backgroundColor: darkMode ? "#1e1e1e" : "#fff",
+    color: darkMode ? "#fff" : "#000",
+    margin: "2rem",
+    padding: "1rem",
+    borderRadius: "8px",
+    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+  }));
+
+  const sortEventsByDate = (order) => {
+    const sorted = [...events].sort((a, b) => {
+      const dateA = new Date(a.dates?.start?.localDate);
+      const dateB = new Date(b.dates?.start?.localDate);
+      return order === "asc" ? dateA - dateB : dateB - dateA;
+    });
+    setSortedEvents(sorted);
+  };
+
+  const sortEventsByDistance = (order) => {
+    if (!location) return;
+
+    const sorted = [...events].sort((a, b) => {
+      const venueA = a._embedded?.venues?.[0]?.location;
+      const venueB = b._embedded?.venues?.[0]?.location;
+
+      if (!venueA || !venueB) return 0;
+
+      const distA = haversine(
+        { lat: location.latitude, lon: location.longitude },
+        { lat: parseFloat(venueA.latitude), lon: parseFloat(venueA.longitude) }
+      );
+
+      const distB = haversine(
+        { lat: location.latitude, lon: location.longitude },
+        { lat: parseFloat(venueB.latitude), lon: parseFloat(venueB.longitude) }
+      );
+
+      return order === "asc" ? distA - distB : distB - distA;
+    });
+
+    setSortedEvents(sorted);
+  };
 
   const fetchEvents = async () => {
     const delay = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -63,6 +136,11 @@ export default function Dashboard() {
           apikey: API_KEY,
           keyword: artist,
           classificationName: genre,
+          segmentName: "Music",
+          geoPoint: Geohash.encode(location.latitude, location.longitude),
+          radius: 200, // e.g., 25 miles
+          unit: "miles", // or "km"
+          size: 100,
         },
       });
 
@@ -71,16 +149,14 @@ export default function Dashboard() {
       const detailedEvents = [];
       for (const event of eventList) {
         try {
-          const detailRes = await axios.get(
-            `http://localhost:5000/api/event/${event.id}`
-          );
+          const detailRes = await axios.get(`${API_URL}/event/${event.id}`);
           detailedEvents.push(detailRes.data);
         } catch (err) {
           console.warn(`Skipping event ${event.id}:`, err.message);
         }
 
         // Wait 250ms between requests to stay under 4 requests/sec
-        await delay(50);
+        await delay(1);
       }
 
       const artistNames = [
@@ -106,6 +182,7 @@ export default function Dashboard() {
         : detailedEvents;
 
       setEvents(filteredByGenre);
+      setSortedEvents(filteredByGenre);
     } catch (error) {
       console.error("Error fetching events", error);
     } finally {
@@ -133,20 +210,26 @@ export default function Dashboard() {
     saveAs(blob, "events.csv");
   };
 
-  const genreData = events.reduce((acc, event) => {
-    const genreName = event.classifications?.[0]?.genre?.name || "Other";
-    acc[genreName] = (acc[genreName] || 0) + 1;
+  const artistData = events.reduce((acc, event) => {
+    // Use first attraction's name if available for better accuracy
+    const artistName = event._embedded?.attractions?.[0]?.name || "Other";
+    acc[artistName] = (acc[artistName] || 0) + 1;
     return acc;
   }, {});
 
-  const chartData = Object.entries(genreData).map(([name, count]) => ({
+  // Convert object to array and sort by count desc
+  const sortedArtists = Object.entries(artistData)
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 10); // Keep top 10 only
+
+  const chartData = sortedArtists.map(([name, count]) => ({
     name,
     count,
   }));
 
   return (
-    <div className="App">
-      <header className="App-header">
+    <div className={darkMode ? "App-dark" : "App"}>
+      <header className={darkMode ? "App-header-dark" : "App-header"}>
         <Typography variant="h4">🎟️ concert.io</Typography>
         <FormControlLabel
           control={
@@ -159,13 +242,14 @@ export default function Dashboard() {
         />
       </header>
 
-      <div className="App-body">
+      <div className={`App-body ${darkMode ? "dark" : "light"}`}>
         <TextField
+          className="Text-field"
           select
           label="Select Genre"
           value={genre}
           onChange={(e) => setGenre(e.target.value)}
-          style={{ minWidth: 200 }}
+          sx={{ minWidth: "200px", color: darkMode ? "#fff" : "#000" }}
         >
           <MenuItem value="">All</MenuItem>
           {PREDEFINED_GENRES.map((g) => (
@@ -175,9 +259,11 @@ export default function Dashboard() {
           ))}
         </TextField>
         <TextField
+          className="Text-field"
           label="Search artist"
           value={artist}
           onChange={(e) => setArtist(e.target.value)}
+          sx={{ minWidth: "200px", color: darkMode ? "#fff" : "#000" }}
         />
         <Button variant="contained" onClick={fetchEvents}>
           Search
@@ -187,13 +273,18 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <Card className="card">
+      <StyledCard darkMode={darkMode}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Genre Distribution
+            Top Artists in Your Area
           </Typography>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData} layout="vertical" barCategoryGap={10}>
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              barCategoryGap={20}
+              margin={{ left: 100, right: 20, top: 20, bottom: 20 }}
+            >
               <XAxis
                 type="number"
                 allowDecimals={false}
@@ -202,6 +293,9 @@ export default function Dashboard() {
               <YAxis
                 type="category"
                 dataKey="name"
+                interval={0} // ensures all labels show
+                tick={{ fontSize: 12 }} // smaller font
+                width={160} // optional: explicit width for Y-axis labels
                 stroke={darkMode ? "#fff" : "#000"}
               />
               <Tooltip />
@@ -209,9 +303,9 @@ export default function Dashboard() {
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
-      </Card>
+      </StyledCard>
 
-      <Card className="card">
+      <StyledCard darkMode={darkMode}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Event List
@@ -219,18 +313,66 @@ export default function Dashboard() {
           {loading ? (
             <CircularProgress />
           ) : (
-            <TableContainer component={Paper} className="table-container">
+            <TableContainer
+              component={Paper}
+              sx={{
+                "& .MuiTableCell-root": {
+                  marginTop: "1rem",
+                  backgroundColor: darkMode ? "#1e1e1e" : "#fff",
+                  color: darkMode ? "#fff" : "#000",
+                },
+              }}
+            >
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>Name</TableCell>
-                    <TableCell>Date</TableCell>
+                    <TableCell
+                      onClick={() => {
+                        const newOrder =
+                          sortBy === "date" && sortOrder === "asc"
+                            ? "desc"
+                            : "asc";
+                        setSortOrder(newOrder);
+                        setSortBy("date");
+                        sortEventsByDate(newOrder);
+                      }}
+                      style={{ cursor: "pointer", fontWeight: "bold" }}
+                    >
+                      Date{" "}
+                      {sortBy === "date"
+                        ? sortOrder === "asc"
+                          ? "↑"
+                          : "↓"
+                        : ""}
+                    </TableCell>
+
+                    <TableCell
+                      onClick={() => {
+                        const newOrder =
+                          sortBy === "distance" && sortOrder === "asc"
+                            ? "desc"
+                            : "asc";
+                        setSortOrder(newOrder);
+                        setSortBy("distance");
+                        sortEventsByDistance(newOrder);
+                      }}
+                      style={{ cursor: "pointer", fontWeight: "bold" }}
+                    >
+                      City{" "}
+                      {sortBy === "distance"
+                        ? sortOrder === "asc"
+                          ? "↑"
+                          : "↓"
+                        : ""}
+                    </TableCell>
+
                     <TableCell>Venue</TableCell>
-                    <TableCell>Image</TableCell>
+                    <TableCell></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {events.map((event) => (
+                  {sortedEvents.map((event) => (
                     <TableRow
                       key={event.id}
                       hover
@@ -239,6 +381,13 @@ export default function Dashboard() {
                     >
                       <TableCell>{event.name}</TableCell>
                       <TableCell>{event.dates?.start?.localDate}</TableCell>
+                      <TableCell>
+                        {event._embedded?.venues?.[0]?.city?.name &&
+                        event._embedded?.venues?.[0]?.state?.name
+                          ? `${event._embedded.venues[0].city.name}, ${event._embedded.venues[0].state.name}`
+                          : "—"}
+                      </TableCell>
+
                       <TableCell>
                         {event._embedded?.venues?.[0]?.name}
                       </TableCell>
@@ -261,7 +410,7 @@ export default function Dashboard() {
             </TableContainer>
           )}
         </CardContent>
-      </Card>
+      </StyledCard>
       <Dialog
         open={!!selectedEvent}
         onClose={() => setSelectedEvent(null)}
@@ -288,8 +437,10 @@ export default function Dashboard() {
               </Typography>
               <Typography variant="subtitle2">
                 <strong>Location:</strong>{" "}
-                {selectedEvent?._embedded?.venues?.[0]?.city?.name},{" "}
-                {selectedEvent?._embedded?.venues?.[0]?.state?.name}
+                {selectedEvent?._embedded?.venues?.[0]?.city?.name &&
+                selectedEvent?._embedded?.venues?.[0]?.state?.name
+                  ? `${selectedEvent?._embedded.venues[0].city.name}, ${selectedEvent?._embedded.venues[0].state.name}`
+                  : "—"}
               </Typography>
               <Typography variant="subtitle2">
                 <strong>Date & Time:</strong>{" "}
@@ -314,21 +465,27 @@ export default function Dashboard() {
               </Typography>
             </div>
           </div>
-          <Button
-            variant="contained"
-            color="primary"
-            href={selectedEvent?.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Buy Tickets
-          </Button>
+          {selectedEvent?.url ? (
+            <Button
+              variant="contained"
+              color="primary"
+              href={selectedEvent?.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Buy Tickets
+            </Button>
+          ) : (
+            <Button variant="contained" disabled>
+              Buy Tickets
+            </Button>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSelectedEvent(null)}>Close</Button>
         </DialogActions>
       </Dialog>
-      <footer className="App-foot">
+      <footer className={darkMode ? "App-foot-dark" : "App-foot"}>
         <p>powered by team SAND</p>
       </footer>
     </div>

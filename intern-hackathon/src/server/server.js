@@ -67,3 +67,38 @@ app.get("/api/event/:id", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Proxy server running on http://localhost:${PORT}`);
 });
+
+app.get("/api/events", async (req, res) => {
+  try {
+    const apiKey = process.env.TICKETMASTER_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "API key not configured" });
+    }
+
+    // Forward query parameters from frontend (like keyword, classificationName)
+    const params = {
+      apikey: apiKey,
+      ...req.query,
+    };
+
+    const response = await axios.get(
+      "https://app.ticketmaster.com/discovery/v2/events.json",
+      { params }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error("Error fetching from Ticketmaster:");
+    if (error.response) {
+      console.error("Status:", error.response.status);
+      console.error("Data:", error.response.data);
+      res.status(500).json({
+        error: error.response.data,
+        message: error.response.data?.errors?.[0]?.detail || "Unknown error",
+      });
+    } else {
+      console.error("Message:", error.message);
+      res.status(500).json({ error: error.message });
+    }
+  }
+});
