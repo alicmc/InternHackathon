@@ -416,6 +416,14 @@ export default function Dashboard() {
         onClose={() => setSelectedEvent(null)}
         maxWidth="sm"
         fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              backgroundColor: darkMode ? "#1e1e1e" : "#fff",
+              color: darkMode ? "#fff" : "#000",
+            },
+          },
+        }}
       >
         <DialogTitle>{selectedEvent?.name}</DialogTitle>
         <DialogContent>
