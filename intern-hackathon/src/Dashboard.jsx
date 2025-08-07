@@ -25,6 +25,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Pagination,
+  Box,
 } from "@mui/material";
 import {
   BarChart,
@@ -63,6 +65,10 @@ export default function Dashboard() {
   });
   const [sortOrder, setSortOrder] = useState("asc"); // or "desc"
   const [sortBy, setSortBy] = useState(null); // e.g., "date" or "distance"
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [eventsPerPage] = useState(10); // Number of events per page
 
   useEffect(() => {
     // Prompt for geolocation on mount
@@ -100,6 +106,7 @@ export default function Dashboard() {
       return order === "asc" ? dateA - dateB : dateB - dateA;
     });
     setSortedEvents(sorted);
+    setCurrentPage(1); // Reset to first page when sorting
   };
 
   const sortEventsByDistance = (order) => {
@@ -125,6 +132,17 @@ export default function Dashboard() {
     });
 
     setSortedEvents(sorted);
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  // Pagination logic
+  const indexOfLastEvent = currentPage * eventsPerPage;
+  const indexOfFirstEvent = indexOfLastEvent - eventsPerPage;
+  const currentEvents = sortedEvents.slice(indexOfFirstEvent, indexOfLastEvent);
+  const totalPages = Math.ceil(sortedEvents.length / eventsPerPage);
+
+  const handlePageChange = (event, newPage) => {
+    setCurrentPage(newPage);
   };
 
   const fetchEvents = async () => {
@@ -183,6 +201,7 @@ export default function Dashboard() {
 
       setEvents(filteredByGenre);
       setSortedEvents(filteredByGenre);
+      setCurrentPage(1); // Reset to first page when new events are loaded
     } catch (error) {
       console.error("Error fetching events", error);
     } finally {
@@ -372,7 +391,7 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {sortedEvents.map((event) => (
+                  {currentEvents.map((event) => (
                     <TableRow
                       key={event.id}
                       hover
@@ -408,6 +427,42 @@ export default function Dashboard() {
                 </TableBody>
               </Table>
             </TableContainer>
+          )}
+          
+          {/* Pagination and Info */}
+          {sortedEvents.length > 0 && (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              mt: 2,
+              flexWrap: 'wrap',
+              gap: 2
+            }}>
+              <Typography variant="body2" color="text.secondary">
+                Showing {indexOfFirstEvent + 1}-{Math.min(indexOfLastEvent, sortedEvents.length)} of {sortedEvents.length} events
+              </Typography>
+              
+              {totalPages > 1 && (
+                <Pagination
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={handlePageChange}
+                  color="primary"
+                  showFirstButton
+                  showLastButton
+                  sx={{
+                    '& .MuiPaginationItem-root': {
+                      color: darkMode ? '#fff' : 'inherit',
+                    },
+                    '& .MuiPaginationItem-root.Mui-selected': {
+                      backgroundColor: '#9a4975ff',
+                      color: '#fff',
+                    },
+                  }}
+                />
+              )}
+            </Box>
           )}
         </CardContent>
       </StyledCard>
