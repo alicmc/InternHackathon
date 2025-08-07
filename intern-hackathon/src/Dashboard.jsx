@@ -155,8 +155,8 @@ export default function Dashboard() {
           console.warn(`Skipping event ${event.id}:`, err.message);
         }
 
-        // Wait 250ms between requests to stay under 4 requests/sec
-        await delay(1);
+        // Wait 200ms between requests to stay under 5 requests/sec
+        await delay(200);
       }
 
       const artistNames = [
