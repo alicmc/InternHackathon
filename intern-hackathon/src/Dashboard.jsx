@@ -283,7 +283,7 @@ export default function Dashboard() {
               data={chartData}
               layout="vertical"
               barCategoryGap={20}
-              margin={{ left: 100, right: 20, top: 20, bottom: 20 }}
+              margin={{ left: 20, right: 20, top: 20, bottom: 20 }}
             >
               <XAxis
                 type="number"
